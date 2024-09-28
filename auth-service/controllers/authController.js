@@ -2,6 +2,23 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// Helper function to generate tokens
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' } // Access token valid for 15 minutes
+  );
+
+  const refreshToken = jwt.sign(
+    { id: user.id },
+    process.env.REFRESH_TOKEN_SECRET,
+    { expiresIn: '7d' } // Refresh token valid for 7 days
+  );
+
+  return { accessToken, refreshToken };
+};
+
 exports.register = async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -12,7 +29,9 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists.' });
     }
 
-    user = new User({ name, email, password, role });
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    user = new User({ name, email, password: hashedPassword, role });
     await user.save();
 
     const payload = {
@@ -49,20 +68,43 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    const payload = {
-      user: {
-        id: user.id,
-        role: user.role,
-      },
-    };
+    const { accessToken, refreshToken } = generateTokens(user);
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: '1h',
-    });
+    // Save refresh token in the database
+    user.refreshToken = refreshToken;
 
-    res.status(200).json({ token });
+    await user.save();
+
+    res.json({ accessToken, refreshToken });
   } catch (error) {
     console.error(error);
     res.status(500).send('Server error');
+  }
+};
+
+// Refresh token
+exports.refreshToken = async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(401).json({ message: 'No token provided.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+
+    const user = await User.findById(decoded.id);
+
+    if (!user || user.refreshToken !== token) {
+      return res.status(403).json({ message: 'Invalid refresh token.' });
+    }
+
+    // Generate a new access token
+    const { accessToken } = generateTokens(user);
+
+    res.json({ accessToken });
+  } catch (error) {
+    console.error(error);
+    res.status(403).json({ message: 'Invalid token' });
   }
 };
