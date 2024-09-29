@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 // Helper function to generate tokens
 const generateTokens = (user) => {
@@ -29,9 +31,7 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    user = new User({ name, email, password: hashedPassword, role });
+    user = new User({ name, email, password, role });
     await user.save();
 
     const payload = {
@@ -106,5 +106,92 @@ exports.refreshToken = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(403).json({ message: 'Invalid token' });
+  }
+};
+
+// Request password reset
+exports.requestPasswordReset = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Generate reset token
+    const resetToken = user.generateResetPasswordToken();
+    await user.save();
+
+    // Send email with reset link
+    const resetUrl = `${req.protocol}://${req.get(
+      'host'
+    )}/auth/reset-password/${resetToken}`;
+
+    const message = `
+    You requested a password reset. Please make a PUT request to:
+    ${resetUrl}
+    `;
+
+    try {
+      // Send email (using nodemailer or a service like sendgrid)
+      const transporter = nodemailer.createTransport({
+        service: 'Gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Password Reset Request',
+        text: message,
+      };
+
+      await transporter.sendMail(mailOptions);
+    } catch (error) {
+      console.error(error);
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save();
+      return res.status(500).json({ message: 'Email could not be sent' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
+  }
+};
+
+// Reset password
+exports.resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  try {
+    // Hash the token and compare it to the one in the database
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }, // Check if token is still valid
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired token' });
+    }
+
+    // Set new password
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: 'Password has been reset' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
   }
 };
