@@ -283,3 +283,58 @@ exports.activateAccount = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+exports.resendActivationEmail = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Check if the user is already verified
+    if (user.isVerified) {
+      return res.status(400).json({ message: 'Account is already activated' });
+    }
+
+    // Generate a new activation token
+    const activationToken = user.generateActivationToken();
+    await user.save();
+
+    // Send the new activation email
+    const activationUrl = `${req.protocol}://${req.get(
+      'host'
+    )}/auth/activate/${activationToken}`;
+
+    const message = `
+        You requested a new account activation. Please activate your account by clicking the following link:
+        ${activationUrl}
+     `;
+
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'Gmail', // Or any email service you prefer
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Resend Account Activation',
+        text: message,
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      res.status(200).json({ message: 'Activation email resent' });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'Email could not be sent' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
+  }
+};

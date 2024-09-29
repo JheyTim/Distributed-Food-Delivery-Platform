@@ -7,6 +7,7 @@ const {
   requestPasswordReset,
   resetPassword,
   activateAccount,
+  resendActivationEmail,
 } = require('../controllers/authController');
 const auth = require('../middleware/auth');
 
@@ -18,6 +19,9 @@ router.post('/login', login);
 
 // Activate account route (Open to all)
 router.get('/activate/:token', activateAccount);
+
+// Resend activation email route (Open to all)
+router.post('/resend-activation', resendActivationEmail);
 
 // Route to refresh the access token
 router.post('/refresh-token', refreshToken);
