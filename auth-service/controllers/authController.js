@@ -1,8 +1,9 @@
-const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const User = require('../models/User');
+const Blacklist = require('../models/Blacklist');
 
 // Helper function to generate tokens
 const generateTokens = (user) => {
@@ -112,6 +113,31 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).send('Server error');
+  }
+};
+
+exports.logout = async (req, res) => {
+  const token = req.header('Authorization');
+
+  if (!token) {
+    return res.status(400).json({ message: 'No token provided' });
+  }
+
+  try {
+    const tokenStr = token.split(' ')[1];
+
+    // Decode the token to get the expiration time
+    const decoded = jwt.decode(tokenStr);
+
+    // Add the token to the blacklist with the expiration time
+    const expiresAt = new Date(decoded.exp * 1000); // Convert to milliseconds
+
+    await Blacklist.create({ token: tokenStr, expiresAt });
+
+    res.send({ message: 'Logged out successfully.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 

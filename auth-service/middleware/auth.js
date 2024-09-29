@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
+const Blacklist = require('../models/Blacklist');
 
 module.exports = function (requiredRoles = []) {
-  return function (req, res, next) {
+  return async function (req, res, next) {
     const token = req.header('Authorization');
     if (!token)
       return res
@@ -9,7 +10,16 @@ module.exports = function (requiredRoles = []) {
         .json({ message: 'No token, authorization denied' });
 
     try {
-      const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+      const tokenStr = token.split(' ')[1];
+
+      // Check if the token is blacklisted
+      const blacklisted = await Blacklist.findOne({ token: tokenStr });
+
+      if (blacklisted) {
+        return res.status(403).json({ message: 'Token has been revoked' });
+      }
+
+      const decoded = jwt.verify(tokenStr, process.env.JWT_SECRET);
       req.user = decoded.user;
 
       // Check if the user's role is allowed
