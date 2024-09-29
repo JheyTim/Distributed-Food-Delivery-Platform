@@ -8,14 +8,23 @@ const {
   resetPassword,
   activateAccount,
   resendActivationEmail,
+  sendOTP,
+  verifyOTP,
 } = require('../controllers/authController');
 const auth = require('../middleware/auth');
+const { otpRateLimiter } = require('../middleware/otpRateLimiter');
 
 // Register route
 router.post('/register', register);
 
 // Login route
 router.post('/login', login);
+
+// Send OTP (MFA) after login
+router.post('/send-otp', otpRateLimiter, sendOTP);
+
+// Verify OTP (MFA)
+router.post('/verify-otp', verifyOTP);
 
 // Activate account route (Open to all)
 router.get('/activate/:token', activateAccount);

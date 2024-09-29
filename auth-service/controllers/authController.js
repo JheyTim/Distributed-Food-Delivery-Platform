@@ -279,3 +279,65 @@ exports.resendActivationEmail = async (req, res) => {
     res.status(500).send('Server error');
   }
 };
+
+// Generate and send OTP for MFA
+exports.sendOTP = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Generate OTP (6-digit)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Hash OTP before saving it
+    user.otp = crypto.createHash('sha256').update(otp).digest('hex');
+    user.otpExpires = Date.now() + 10 * 60 * 1000; // OTP expires in 10 minutes
+
+    await user.save();
+
+    // Send OTP via email
+
+    const message = `Your OTP for login is: ${otp}. It is valid for 10 minutes.`;
+
+    sendEmail(message, user.email, 'Your MFA OTP Code');
+
+    res.status(200).json({ message: 'OTP sent to email' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Verify OTP
+exports.verifyOTP = async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Check if OTP is valid and not expired
+    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+    if (user.otp !== hashedOTP || user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    // OTP is valid, mark as verified
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    // Generate JWT token for the session
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    res.json({ accessToken, refreshToken });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
