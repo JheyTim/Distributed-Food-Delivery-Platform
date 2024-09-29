@@ -33,6 +33,13 @@ const UserSchema = new mongoose.Schema({
   resetPasswordExpires: {
     type: Date,
   },
+  activationToken: {
+    type: String, //Token for account activation
+  },
+  isVerified: {
+    type: Boolean,
+    default: false, // Set to false by default until email is verified
+  },
 });
 
 // Hash password before saving
@@ -59,6 +66,18 @@ UserSchema.methods.generateResetPasswordToken = function () {
   this.resetPasswordExpires = Date.now() + 3600000;
 
   return resetToken;
+};
+
+// Generate activation token
+UserSchema.methods.generateActivationToken = function () {
+  const activationToken = crypto.randomBytes(20).toString('hex');
+
+  this.activationToken = crypto
+    .createHash('sha256')
+    .update(activationToken)
+    .digest('hex');
+
+  return activationToken;
 };
 
 module.exports = mongoose.model('User', UserSchema);

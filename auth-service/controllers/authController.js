@@ -31,21 +31,48 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists.' });
     }
 
+    // Create new User
     user = new User({ name, email, password, role });
+
+    // Generate activation token
+    const activationToken = user.generateActivationToken();
     await user.save();
 
-    const payload = {
-      user: {
-        id: user.id,
-        role: user.role,
-      },
-    };
+    // Send activation email
+    const activationUrl = `${req.protocol}://${req.get(
+      'host'
+    )}/auth/activate/${activationToken}`;
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: '1h',
-    });
+    const message = `
+    Welcome to our platform! Please activate your account by clicking the following link:
+    ${activationUrl}
+    `;
 
-    res.status(201).json({ token });
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'Gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Account Activation',
+        text: message,
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      res.send({ message: 'Activation email sent.' });
+    } catch (error) {
+      console.error(error);
+      user.activationToken = undefined;
+      await user.save();
+      return res.status(500).json({ message: 'Email could not be sent' });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).send('Server error');
@@ -60,6 +87,12 @@ exports.login = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials.' });
+    }
+
+    if (!user.isVerified) {
+      return res
+        .status(403)
+        .json({ message: 'Please verify your email to activate your account' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -190,6 +223,35 @@ exports.resetPassword = async (req, res) => {
     await user.save();
 
     res.status(200).json({ message: 'Password has been reset' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
+  }
+};
+
+exports.activateAccount = async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      activationToken: hashedToken,
+      isVerified: false,
+    });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: 'Invalid or expired activation token' });
+    }
+
+    // Activate the user's account
+    user.isVerified = true;
+    user.activationToken = undefined; // Clear the token after activation
+    await user.save();
+
+    res.send({ message: 'Account activated successfully.' });
   } catch (error) {
     console.error(error);
     res.status(500).send('Server error');
