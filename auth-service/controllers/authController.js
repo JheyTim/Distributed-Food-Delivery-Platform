@@ -1,26 +1,10 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const User = require('../models/User');
 const Blacklist = require('../models/Blacklist');
-
-// Helper function to generate tokens
-const generateTokens = (user) => {
-  const accessToken = jwt.sign(
-    { id: user.id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '15m' } // Access token valid for 15 minutes
-  );
-
-  const refreshToken = jwt.sign(
-    { id: user.id },
-    process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: '7d' } // Refresh token valid for 7 days
-  );
-
-  return { accessToken, refreshToken };
-};
+const { generateTokens } = require('../utils/generateTokens');
+const { sendEmail } = require('../utils/sendEmail');
 
 exports.register = async (req, res) => {
   const { name, email, password, role } = req.body;
@@ -50,22 +34,7 @@ exports.register = async (req, res) => {
     `;
 
     try {
-      const transporter = nodemailer.createTransport({
-        service: 'Gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
-
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: 'Account Activation',
-        text: message,
-      };
-
-      await transporter.sendMail(mailOptions);
+      sendEmail(message, user.email, 'Account Activation');
 
       res.send({ message: 'Activation email sent.' });
     } catch (error) {
@@ -195,22 +164,9 @@ exports.requestPasswordReset = async (req, res) => {
 
     try {
       // Send email (using nodemailer or a service like sendgrid)
-      const transporter = nodemailer.createTransport({
-        service: 'Gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
+      sendEmail(message, user.email, 'Password Reset Request');
 
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: 'Password Reset Request',
-        text: message,
-      };
-
-      await transporter.sendMail(mailOptions);
+      res.status(200).json({ message: 'Email sent' });
     } catch (error) {
       console.error(error);
       user.resetPasswordToken = undefined;
@@ -311,22 +267,7 @@ exports.resendActivationEmail = async (req, res) => {
      `;
 
     try {
-      const transporter = nodemailer.createTransport({
-        service: 'Gmail', // Or any email service you prefer
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
-
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: 'Resend Account Activation',
-        text: message,
-      };
-
-      await transporter.sendMail(mailOptions);
+      sendEmail(message, user.email, 'Resend Account Activation');
 
       res.status(200).json({ message: 'Activation email resent' });
     } catch (error) {
