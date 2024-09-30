@@ -3,6 +3,8 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const csurf = require('csurf');
 // const passport = require('passport');
 // const jwt = require('jsonwebtoken');
 const connectDB = require('./config/db');
@@ -21,6 +23,9 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+
+app.use(helmet());
+app.use(csurf({ cookie: true }));
 
 app.use('/auth', authRoutes);
 
