@@ -5,6 +5,7 @@ const requestIp = require('request-ip');
 const useragent = require('useragent');
 const User = require('../models/User');
 const Blacklist = require('../models/Blacklist');
+const SuspiciousLogin = require('../models/SuspiciousLogin');
 const { generateTokens } = require('../utils/generateTokens');
 const { sendEmail } = require('../utils/sendEmail');
 
@@ -80,17 +81,29 @@ exports.login = async (req, res) => {
     const agent = useragent.parse(req.headers['user-agent']); // Get user's device info
     const currentDevice = `${agent.family} ${agent.major} ${agent.os.family} ${agent.os.major}`;
 
-    // Check if IP is allowed
-    if (!user.allowedIPs.includes(clientIp)) {
-      return res.status(403).json({
-        message: 'Unrecognized IP address. Additional verification required.',
+    // Log suspicious attempts if the IP or device is unrecognized
+    if (
+      !user.allowedIPs.includes(clientIp) ||
+      !user.allowedDevices.includes(currentDevice)
+    ) {
+      await SuspiciousLogin.create({
+        email: user.email,
+        ip: clientIp,
+        device: currentDevice,
       });
-    }
 
-    // Check if device is allowed
-    if (!user.allowedDevices.includes(currentDevice)) {
+      const message = `A login attempt was made with the following details:
+      IP Address: ${clientIp}
+      Device: ${currentDevice}
+   
+      If this was not you, please take appropriate action immediately.`;
+
+      // Send email to the user about the suspicious login
+      sendEmail(message, user.email, 'Suspicious Login Attempt');
+
       return res.status(403).json({
-        message: 'Unrecognized device. Additional verification required.',
+        message:
+          'Unrecognized IP or device. Please check your email for verification',
       });
     }
 
