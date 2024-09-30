@@ -6,6 +6,7 @@ const useragent = require('useragent');
 const User = require('../models/User');
 const Blacklist = require('../models/Blacklist');
 const SuspiciousLogin = require('../models/SuspiciousLogin');
+const AuditLog = require('../models/AuditLog');
 const { generateTokens } = require('../utils/generateTokens');
 const { sendEmail } = require('../utils/sendEmail');
 
@@ -115,6 +116,9 @@ exports.login = async (req, res) => {
 
     await user.save();
 
+    // Log the login action
+    await AuditLog.create({ user: user._id, action: 'login', ip: clientIp });
+
     res.json({ accessToken, refreshToken });
   } catch (error) {
     console.error(error);
@@ -167,6 +171,13 @@ exports.refreshToken = async (req, res) => {
     // Generate a new access token
     const { accessToken } = generateTokens(user);
 
+    // Log the refreshToken action
+    await AuditLog.create({
+      user: user._id,
+      action: 'refreshToken',
+      ip: requestIp.getClientIp(req),
+    });
+
     res.json({ accessToken });
   } catch (error) {
     console.error(error);
@@ -202,6 +213,13 @@ exports.requestPasswordReset = async (req, res) => {
     try {
       // Send email (using nodemailer or a service like sendgrid)
       sendEmail(message, user.email, 'Password Reset Request');
+
+      // Log the refreshToken action
+      await AuditLog.create({
+        user: user._id,
+        action: 'requestPasswordReset',
+        ip: requestIp.getClientIp(req),
+      });
 
       res.status(200).json({ message: 'Email sent' });
     } catch (error) {
@@ -241,6 +259,13 @@ exports.resetPassword = async (req, res) => {
     user.resetPasswordExpires = undefined;
     await user.save();
 
+    // Log the resetPassword action
+    await AuditLog.create({
+      user: user._id,
+      action: 'resetPassword',
+      ip: requestIp.getClientIp(req),
+    });
+
     res.status(200).json({ message: 'Password has been reset' });
   } catch (error) {
     console.error(error);
@@ -269,6 +294,13 @@ exports.activateAccount = async (req, res) => {
     user.isVerified = true;
     user.activationToken = undefined; // Clear the token after activation
     await user.save();
+
+    // Log the activateAccount action
+    await AuditLog.create({
+      user: user._id,
+      action: 'activateAccount',
+      ip: requestIp.getClientIp(req),
+    });
 
     res.send({ message: 'Account activated successfully.' });
   } catch (error) {
@@ -305,6 +337,13 @@ exports.resendActivationEmail = async (req, res) => {
 
     try {
       sendEmail(message, user.email, 'Resend Account Activation');
+
+      // Log the resendActivationEmail action
+      await AuditLog.create({
+        user: user._id,
+        action: 'resendActivationEmail',
+        ip: requestIp.getClientIp(req),
+      });
 
       res.status(200).json({ message: 'Activation email resent' });
     } catch (error) {
@@ -343,6 +382,13 @@ exports.sendOTP = async (req, res) => {
 
     sendEmail(message, user.email, 'Your MFA OTP Code');
 
+    // Log the sendOTP action
+    await AuditLog.create({
+      user: user._id,
+      action: 'sendOTP',
+      ip: requestIp.getClientIp(req),
+    });
+
     res.status(200).json({ message: 'OTP sent to email' });
   } catch (error) {
     console.error(error);
@@ -372,6 +418,13 @@ exports.verifyOTP = async (req, res) => {
     // Generate JWT token for the session
     const { accessToken, refreshToken } = generateTokens(user);
 
+    // Log the verifyOTP action
+    await AuditLog.create({
+      user: user._id,
+      action: 'verifyOTP',
+      ip: requestIp.getClientIp(req),
+    });
+
     res.json({ accessToken, refreshToken });
   } catch (err) {
     console.error(err.message);
@@ -400,6 +453,14 @@ exports.addAllowedIPAndDevice = async (req, res) => {
     }
 
     await user.save();
+
+    // Log the addAllowedIPAndDevice action
+    await AuditLog.create({
+      user: user._id,
+      action: 'addAllowedIPAndDevice',
+      ip: requestIp.getClientIp(req),
+    });
+
     res.status(200).json({ message: 'IP and device added successfully' });
   } catch (error) {
     console.error(error);
