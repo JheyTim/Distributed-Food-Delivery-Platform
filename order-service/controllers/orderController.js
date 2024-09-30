@@ -1,10 +1,13 @@
 const Order = require('../models/Order');
+const { processPayment } = require('../services/paymentService');
 
 // Place a new order
 exports.placeOrder = async (req, res) => {
-  const { customer, restaurant, items, deliveryAddress } = req.body;
+  const { customer, restaurant, items, deliveryAddress, paymentMethodId } =
+    req.body;
 
   try {
+    // Calculate total amount
     const totalAmount = items.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0
@@ -19,6 +22,23 @@ exports.placeOrder = async (req, res) => {
     });
 
     await newOrder.save();
+
+    // Process payment
+    const paymentResponse = await processPayment({
+      amount: totalAmount * 100, // Stripe requires the amount in cents
+      paymentMethodId,
+    });
+
+    if (paymentResponse.error) {
+      return res
+        .status(500)
+        .json({ message: 'Payment failed', error: paymentResponse.error });
+    }
+
+    // Update order payment status if payment is successful
+    newOrder.paymentStatus = 'Paid';
+    await newOrder.save();
+
     res.status(201).json(newOrder);
   } catch (error) {
     console.error(error);

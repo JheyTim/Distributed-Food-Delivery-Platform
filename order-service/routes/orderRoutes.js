@@ -6,6 +6,7 @@ const {
   updateOrderStatus,
   cancelOrder,
 } = require('../controllers/orderController');
+const { processPayment } = require('../services/paymentService');
 
 // Place a new order
 router.post('/place', placeOrder);
@@ -18,5 +19,8 @@ router.put('/:id/status', updateOrderStatus);
 
 // Cancel an order
 router.put('/:id/cancel', cancelOrder);
+
+// Process payment for an order
+router.post('/payment', processPayment);
 
 module.exports = router;
