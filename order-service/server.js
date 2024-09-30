@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const connectDB = require('./config/db');
 const orderRoutes = require('./routes/orderRoutes');
+const http = require('http');
+const socketio = require('socket.io');
 
 const app = express();
 
@@ -14,6 +16,23 @@ app.use(express.json());
 // Routes
 app.use('/orders', orderRoutes);
 
+// Create HTTP server and WebSocket server
+const server = http.createServer(app);
+const io = socketio(server);
+
+// Listen for WebSocket connections
+io.on('connection', (socket) => {
+  const customerId = socket.handshake.query.customerId;
+  socket.join(customerId); // Each user has their own room
+
+  socket.on('disconnect', () => {
+    console.log(`User ${customerId} disconnected`);
+  });
+});
+
+// Emit updates when order status changes
+app.set('io', io);
+
 // Start the server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Order Service running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Order Service running on port ${PORT}`));

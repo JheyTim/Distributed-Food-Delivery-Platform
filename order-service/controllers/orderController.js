@@ -48,11 +48,21 @@ exports.updateOrderStatus = async (req, res) => {
   const { status } = req.body;
 
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate('customer');
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
     order.status = status;
     await order.save();
+
+    const customerId = order.customer._id;
+
+    // Emit real-time update to the client
+    const io = req.app.get('io');
+    io.to(customerId.toString()).emit('orderStatusUpdate', {
+      orderId: order._id,
+      status: order.status,
+    });
+
     res.json(order);
   } catch (error) {
     console.error(error);
