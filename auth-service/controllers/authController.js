@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const requestIp = require('request-ip');
+const useragent = require('useragent');
 const User = require('../models/User');
 const Blacklist = require('../models/Blacklist');
 const { generateTokens } = require('../utils/generateTokens');
@@ -49,6 +51,7 @@ exports.register = async (req, res) => {
   }
 };
 
+// Login function with IP and Device check
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -59,6 +62,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
+    // Check if the user is verified
     if (!user.isVerified) {
       return res
         .status(403)
@@ -71,6 +75,26 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    // Get the user's IP address and device info
+    const clientIp = requestIp.getClientIp(req); // Get user's IP address
+    const agent = useragent.parse(req.headers['user-agent']); // Get user's device info
+    const currentDevice = `${agent.family} ${agent.major} ${agent.os.family} ${agent.os.major}`;
+
+    // Check if IP is allowed
+    if (!user.allowedIPs.includes(clientIp)) {
+      return res.status(403).json({
+        message: 'Unrecognized IP address. Additional verification required.',
+      });
+    }
+
+    // Check if device is allowed
+    if (!user.allowedDevices.includes(currentDevice)) {
+      return res.status(403).json({
+        message: 'Unrecognized device. Additional verification required.',
+      });
+    }
+
+    // Generate JWT tokens
     const { accessToken, refreshToken } = generateTokens(user);
 
     // Save refresh token in the database
@@ -338,6 +362,34 @@ exports.verifyOTP = async (req, res) => {
     res.json({ accessToken, refreshToken });
   } catch (err) {
     console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Add allowed IP and device to user profile
+exports.addAllowedIPAndDevice = async (req, res) => {
+  const { email, ip, device } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Add IP and device if they are not already in the list
+    if (!user.allowedIPs.includes(ip)) {
+      user.allowedIPs.push(ip);
+    }
+
+    if (!user.allowedDevices.includes(device)) {
+      user.allowedDevices.push(device);
+    }
+
+    await user.save();
+    res.status(200).json({ message: 'IP and device added successfully' });
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Server error' });
   }
 };

@@ -10,6 +10,7 @@ const {
   resendActivationEmail,
   sendOTP,
   verifyOTP,
+  addAllowedIPAndDevice 
 } = require('../controllers/authController');
 const auth = require('../middleware/auth');
 const {
@@ -22,6 +23,9 @@ router.post('/register', register);
 
 // Login route
 router.post('/login', loginLimiter, login);
+
+// Add allowed IP and device route (Protected)
+router.post('/add-allowed-ip-device', auth(), addAllowedIPAndDevice);
 
 // Send OTP (MFA) after login
 router.post('/send-otp', otpRateLimiter, sendOTP);

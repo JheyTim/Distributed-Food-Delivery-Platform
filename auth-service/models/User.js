@@ -40,6 +40,16 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false, // Set to false by default until email is verified
   },
+  allowedIPs: [
+    {
+      type: String, // Store allowed IP addresses
+    },
+  ],
+  allowedDevices: [
+    {
+      type: String, // Store allowed device/browser information
+    },
+  ],
 });
 
 // Hash password before saving
