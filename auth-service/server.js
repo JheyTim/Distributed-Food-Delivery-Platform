@@ -2,6 +2,7 @@ require('dotenv').config();
 // require('./config/passport');
 
 const express = require('express');
+const cors = require('cors');
 // const passport = require('passport');
 // const jwt = require('jsonwebtoken');
 const connectDB = require('./config/db');
@@ -12,6 +13,14 @@ const app = express();
 connectDB();
 
 app.use(express.json());
+
+app.use(
+  cors({
+    // origin: ['https://your-frontend-domain.com'], // Add allowed domains here
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 
 app.use('/auth', authRoutes);
 
