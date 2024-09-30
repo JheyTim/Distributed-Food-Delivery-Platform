@@ -22,11 +22,11 @@ const io = socketio(server);
 
 // Listen for WebSocket connections
 io.on('connection', (socket) => {
-  const customerId = socket.handshake.query.customerId;
-  socket.join(customerId); // Each user has their own room
+  const userId = socket.handshake.query.userId;
+  socket.join(userId); // Each user has their own room
 
   socket.on('disconnect', () => {
-    console.log(`User ${customerId} disconnected`);
+    console.log(`User ${userId} disconnected`);
   });
 });
 
