@@ -12,13 +12,16 @@ const {
   verifyOTP,
 } = require('../controllers/authController');
 const auth = require('../middleware/auth');
-const { otpRateLimiter } = require('../middleware/otpRateLimiter');
+const {
+  otpRateLimiter,
+  loginLimiter,
+} = require('../middleware/rateLimiter');
 
 // Register route
 router.post('/register', register);
 
 // Login route
-router.post('/login', login);
+router.post('/login', loginLimiter, login);
 
 // Send OTP (MFA) after login
 router.post('/send-otp', otpRateLimiter, sendOTP);
