@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const { processPayment } = require('../services/paymentService');
+const { publishOrderPlaced } = require('../utils/rabbitmq');
 
 // Place a new order
 exports.placeOrder = async (req, res) => {
@@ -23,21 +24,24 @@ exports.placeOrder = async (req, res) => {
 
     await newOrder.save();
 
-    // Process payment
-    const paymentResponse = await processPayment({
-      amount: totalAmount * 100, // Stripe requires the amount in cents
-      paymentMethodId,
-    });
+    // // Process payment
+    // const paymentResponse = await processPayment({
+    //   amount: totalAmount * 100, // Stripe requires the amount in cents
+    //   paymentMethodId,
+    // });
 
-    if (paymentResponse.error) {
-      return res
-        .status(500)
-        .json({ message: 'Payment failed', error: paymentResponse.error });
-    }
+    // if (paymentResponse.error) {
+    //   return res
+    //     .status(500)
+    //     .json({ message: 'Payment failed', error: paymentResponse.error });
+    // }
 
     // Update order payment status if payment is successful
     newOrder.paymentStatus = 'Paid';
     await newOrder.save();
+
+    // Publish the order event to RabbitMQ
+    await publishOrderPlaced(newOrder);
 
     res.status(201).json(newOrder);
   } catch (error) {
