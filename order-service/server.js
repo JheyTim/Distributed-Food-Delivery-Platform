@@ -4,7 +4,7 @@ const http = require('http');
 const socketio = require('socket.io');
 const connectDB = require('./config/db');
 const orderRoutes = require('./routes/orderRoutes');
-const { connectRabbitMQ } = require('./utils/rabbitmq');
+const { connectRabbitMQ, consumeOrderValidated } = require('./utils/rabbitmq');
 
 const app = express();
 
@@ -12,6 +12,7 @@ const app = express();
 connectDB();
 
 connectRabbitMQ();
+consumeOrderValidated();
 
 // Middleware
 app.use(express.json());
