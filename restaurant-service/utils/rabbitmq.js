@@ -33,7 +33,6 @@ const connectRabbitMQ = async () => {
 
 const processOrder = async (order) => {
   try {
-    // Step 1: Fetch the restaurant details using Mongoose instead of Axios
     const restaurant = await Restaurant.findById(order.restaurantId);
 
     if (!restaurant) {
@@ -46,7 +45,6 @@ const processOrder = async (order) => {
       return;
     }
 
-    // Step 2: Verify the ordered items
     const unavailableItems = order.items.filter((item) => {
       const menuItem = restaurant.menu.find(
         (menuItem) => menuItem.name === item.foodItem && menuItem.available
