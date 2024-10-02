@@ -27,3 +27,25 @@ The platform consists of three main microservices:
 - **Stripe**: Payment gateway for handling order payments.
 - **RabbitMQ**: Message broker for asynchronous communication.
 - **Docker**: Containerization of microservices.
+
+## Environment Variables
+Each service requires certain environment variables to be set up. Here's a variables for each service:
+
+### Authentication Service
+- MONGO_URI
+- JWT_SECRET
+- REFRESH_TOKEN_SECRET
+- GOOGLE_CLIENT_ID
+- GOOGLE_CLIENT_SECRET
+- EMAIL_USER
+- EMAIL_PASS
+
+### Order Service
+- PORT
+- JWT_SECRET
+- MONGO_URI
+- STRIPE_SECRET_KEY
+
+### Restaurant Service
+- MONGO_URI
+- PORT
