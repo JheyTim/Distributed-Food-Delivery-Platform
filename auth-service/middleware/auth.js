@@ -19,16 +19,15 @@ module.exports = function (requiredRoles = []) {
         return res.status(403).json({ message: 'Token has been revoked' });
       }
 
-      const decoded = jwt.verify(tokenStr, process.env.JWT_SECRET);
-      req.user = decoded.user;
-
       // Check if the user's role is allowed
       if (requiredRoles.length && !requiredRoles.includes(req.user.role)) {
         return res
           .status(403)
           .json({ message: 'Access denied: insufficient permissions' });
       }
-
+      
+      const decoded = jwt.verify(tokenStr, process.env.JWT_SECRET);
+      req.user = decoded.user;
       next();
     } catch (err) {
       res.status(401).json({ message: 'Token is not valid' });

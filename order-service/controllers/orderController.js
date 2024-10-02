@@ -4,10 +4,12 @@ const { publishOrderPlaced } = require('../utils/rabbitmq');
 
 // Place a new order
 exports.placeOrder = async (req, res) => {
-  const { customer, restaurant, items, deliveryAddress, paymentMethodId } =
-    req.body;
+  const { restaurant, items, deliveryAddress, paymentMethodId } = req.body;
 
   try {
+    // Use the authenticated user from the token
+    const customerId = req.user.id;
+
     // Calculate total amount
     const totalAmount = items.reduce(
       (sum, item) => sum + item.price * item.quantity,
@@ -15,7 +17,7 @@ exports.placeOrder = async (req, res) => {
     );
 
     const newOrder = new Order({
-      customer,
+      customer: customerId,
       restaurant,
       items,
       totalAmount,
