@@ -4,10 +4,6 @@ This project is a microservices-based distributed food delivery platform. The sy
 
 The core functionality of the project is **complete**, including authentication, order processing, restaurant validation, and payment integration. However, some areas of the project have been deliberately skipped or are not fully polished.
 
-## Table of Contents
-- [Services](#services)
-- [Technologies Used](#technologies-used)
-
 ## Services
 
 The platform consists of three main microservices:
